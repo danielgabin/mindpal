@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mindpal-postgres
+    environment:
+      POSTGRES_USER: mindpal
+      POSTGRES_PASSWORD: mindpal_dev_password
+      POSTGRES_DB: mindpal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mindpal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mindpal-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: mindpal-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - mindpal-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mindpal-api
+    environment:
+      - DATABASE_URL=postgresql://mindpal:mindpal_dev_password@postgres:5432/mindpal
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - JWT_SECRET_KEY=dev_jwt_secret_key_change_in_production
+      - JWT_REFRESH_SECRET_KEY=dev_jwt_refresh_secret_key_change_in_production
+      - BACKEND_CORS_ORIGINS=["http://localhost:3000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - mindpal-network
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+
+networks:
+  mindpal-network:
+    driver: bridge
