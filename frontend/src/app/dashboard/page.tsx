@@ -4,8 +4,10 @@
 
 'use client';
 
+import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { FileText, Users, Calendar, TrendingUp } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -58,27 +60,25 @@ export default function DashboardPage() {
             <CardDescription>Get started with common tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div>
-                <h3 className="font-medium">Add New Patient</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Start managing a new patient
-                </p>
+            <Link href="/patients/new">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors">
+                <div>
+                  <h3 className="font-medium">Add New Patient</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Start managing a new patient
+                  </p>
+                </div>
+                <Button size="sm">+ Add</Button>
               </div>
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
-                + Add
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            </Link>
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg opacity-50">
               <div>
                 <h3 className="font-medium">Create Clinical Note</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Document a session
+                  Document a session (coming soon)
                 </p>
               </div>
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
-                + Create
-              </button>
+              <Button size="sm" disabled>+ Create</Button>
             </div>
           </CardContent>
         </Card>

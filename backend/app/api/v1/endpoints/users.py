@@ -10,7 +10,7 @@ from app.schemas.user import UserResponse, UserUpdate, UserPasswordUpdate
 from app.schemas.common import MessageResponse
 from app.services.user_service import UserService
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter()
 
 
 @router.get("/me", response_model=UserResponse)

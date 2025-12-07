@@ -16,7 +16,7 @@ from app.schemas.user import UserCreate, UserResponse
 from app.schemas.common import MessageResponse
 from app.services.auth_service import AuthService
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
