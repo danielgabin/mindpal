@@ -44,6 +44,7 @@ class Patient(Base):
     # Relationships
     creator = relationship("User", back_populates="patients", foreign_keys=[created_by])
     entities = relationship("PatientEntity", back_populates="patient", cascade="all, delete-orphan")
+    notes = relationship("Note", back_populates="patient", foreign_keys="Note.patient_id")
     
     @property
     def is_minor(self) -> bool:

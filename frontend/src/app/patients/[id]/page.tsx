@@ -7,6 +7,7 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient, usePatientEntities, useAddPatientEntity, useDeletePatientEntity } from '@/hooks/use-patients';
+import { useNotes, useCreateNote } from '@/hooks/use-notes';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -23,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Home, ArrowLeft, Archive, Plus, X } from 'lucide-react';
 import type { EntityType } from '@/types/patient';
+import type { Note } from '@/types/note';
 
 const updateSchema = z.object({
   first_name: z.string().min(1),
@@ -156,6 +158,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             <TabsList>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="entities">Entities</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details">
@@ -321,9 +324,145 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 </Card>
               ))}
             </TabsContent>
+
+            <TabsContent value="notes" className="space-y-4">
+              <NotesTab patientId={resolvedParams.id} patientName={patient.full_name} />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
+  );
+}
+
+// Notes Tab Component
+function NotesTab({ patientId, patientName }: { patientId: string; patientName: string }) {
+  const router = useRouter();
+  const [kindFilter, setKindFilter] = useState<'all' | 'conceptualization' | 'followup' | 'split'>('all');
+  const { data: notes, isLoading } = useNotes(patientId, kindFilter === 'all' ? undefined : kindFilter);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Clinical Notes</CardTitle>
+              <CardDescription>View and manage notes for {patientName}</CardDescription>
+            </div>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="h-4 w-4 mr-2" />New Note</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Note</DialogTitle>
+                </DialogHeader>
+                <NewNoteForm
+                  patientId={patientId}
+                  onSuccess={(noteId) => {
+                    setCreateDialogOpen(false);
+                    router.push(`/notes/${noteId}`);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 mb-4">
+            <Button variant={kindFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('all')}>All</Button>
+            <Button variant={kindFilter === 'conceptualization' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('conceptualization')}>Conceptualization</Button>
+            <Button variant={kindFilter === 'followup' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('followup')}>Follow-up</Button>
+            <Button variant={kindFilter === 'split' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('split')}>Split Files</Button>
+          </div>
+
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+          ) : !notes || notes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No notes found</p>
+              <Button variant="link" onClick={() => setCreateDialogOpen(true)}>Create your first note</Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {notes.map((note) => (
+                <div
+                  key={note.id}
+                  onClick={() => router.push(`/notes/${note.id}`)}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium">{note.title}</h4>
+                      <Badge variant="secondary" className="text-xs capitalize">{note.kind}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(note.updated_at).toLocaleDateString()} • {note.version_count} versions
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+// New Note Form Component
+function NewNoteForm({ patientId, onSuccess }: { patientId: string; onSuccess: (noteId: string) => void }) {
+  const [title, setTitle] = useState('');
+  const [kind, setKind] = useState<'conceptualization' | 'followup'>('conceptualization');
+  const createNote = useCreateNote();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createNote.mutate(
+      {
+        patient_id: patientId,
+        title,
+        kind,
+        content_markdown: '# ' + title + '\n\nStart writing your note here...',
+      },
+      {
+        onSuccess: (data) => onSuccess(data.id),
+      }
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+      <div>
+        <label className="text-sm font-medium">Title</label>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Note title"
+          required
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Type</label>
+        <Select value={kind} onValueChange={(v: any) => setKind(v)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="conceptualization">Conceptualization</SelectItem>
+            <SelectItem value="followup">Follow-up</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={createNote.isPending}>
+          {createNote.isPending ? 'Creating...' : 'Create & Edit'}
+        </Button>
+      </div>
+    </form>
   );
 }

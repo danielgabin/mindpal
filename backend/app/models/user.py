@@ -42,6 +42,7 @@ class User(Base):
     clinic = relationship("Clinic", back_populates="users", foreign_keys=[clinic_id])
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     patients = relationship("Patient", back_populates="creator", foreign_keys="Patient.created_by")
+    notes = relationship("Note", back_populates="author", foreign_keys="Note.author_id")
     
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
