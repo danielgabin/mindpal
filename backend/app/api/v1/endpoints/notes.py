@@ -1,7 +1,7 @@
 """API endpoints for clinical notes management."""
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -12,7 +12,8 @@ from app.schemas.note import (
     NoteUpdate,
     NoteResponse,
    NoteListItem,
-    NoteVersionResponse
+    NoteVersionResponse,
+    GenerateSplitsRequest
 )
 from app.services.note_service import NoteService
 
@@ -128,3 +129,77 @@ def get_split_notes(
     """Get all split notes for a conceptualization note."""
     splits = NoteService.get_split_notes(db, note_id, current_user.id)
     return splits
+
+
+@router.post("/{note_id}/generate-splits")
+async def generate_split_files(
+    note_id: UUID,
+    request: GenerateSplitsRequest,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate split files from a conceptualization note.
+    
+    - **categories**: Optional list of category names in the request body
+      - If None: LLM will infer categories from content
+      - If provided: Use these specific categories
+    
+    Runs in background and returns immediately.
+    """
+    from app.services.tasks.factory import get_task_processor
+    
+    # Verify note exists and is conceptualization
+    note = NoteService.get_note_by_id(db, note_id, current_user.id)
+    
+    if note.kind != "conceptualization":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only generate splits from conceptualization notes"
+        )
+    
+    # Check if splits already exist
+    existing_splits = NoteService.count_split_notes(db, note_id)
+    
+    if existing_splits > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Split files already exist for this note ({existing_splits} splits). Delete them first to regenerate."
+        )
+    
+    # Queue background task
+    processor = get_task_processor()
+    
+    async def generate_task():
+        try:
+            await processor.process_split_generation(
+                conceptualization_id=note_id,
+                categories=request.categories,
+                user_id=current_user.id
+            )
+        except Exception as e:
+            print(f"Error generating splits: {str(e)}")
+    
+    background_tasks.add_task(generate_task)
+    
+    return {
+        "message": "Split generation started",
+        "status": "processing",
+        "categories": request.categories
+    }
+
+
+@router.get("/categories/defaults")
+def get_default_categories():
+    """Get platform default split file categories."""
+    return {
+        "categories": [
+            "Background",
+            "Presenting Problem",
+            "Symptoms",
+            "Mental Status",
+            "Treatment Plan",
+            "Risk Assessment"
+        ]
+    }

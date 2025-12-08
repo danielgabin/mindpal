@@ -1,7 +1,7 @@
 """Pydantic schemas for clinical notes and versions."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, field_validator
 from uuid import UUID
 
@@ -43,6 +43,11 @@ class NoteUpdate(BaseModel):
     """Schema for updating a note (all fields optional)."""
     title: Optional[str] = None
     content_markdown: Optional[str] = None
+
+
+class GenerateSplitsRequest(BaseModel):
+    """Schema for generating split files request."""
+    categories: Optional[List[str]] = None
 
 
 class NoteResponse(NoteBase):

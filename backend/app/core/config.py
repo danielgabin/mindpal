@@ -44,8 +44,14 @@ class Settings(BaseSettings):
                 return [origin.strip() for origin in v.split(",")]
         return v
     
-    # Google Gemini API (for AI features)
-    GOOGLE_GEMINI_API_KEY: str = ""
+    
+    # Gemini AI Configuration
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    MAX_SPLIT_FILES: int = 10
+    
+    # Task Processing
+    TASK_PROCESSOR: str = "background"  # 'background' | 'sync' | 'celery'
     
     # Email Configuration (stubbed)
     SMTP_HOST: str = "smtp.gmail.com"

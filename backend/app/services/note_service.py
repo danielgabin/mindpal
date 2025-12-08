@@ -283,3 +283,12 @@ class NoteService:
         ).order_by(Note.created_at.asc()).all()
         
         return splits
+    
+    @staticmethod
+    def count_split_notes(db: Session, parent_note_id: UUID) -> int:
+        """
+        Count explicit split notes for a conceptualization.
+        """
+        return db.query(Note).filter(
+            Note.parent_note_id == parent_note_id
+        ).count()

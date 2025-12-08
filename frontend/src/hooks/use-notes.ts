@@ -166,3 +166,70 @@ export function useRestoreVersion() {
     },
   });
 }
+
+// Fetch default categories
+export function useDefaultCategories() {
+  return useQuery({
+    queryKey: ['categories', 'defaults'],
+    queryFn: async () => {
+      const response = await apiClient.get<{ categories: string[] }>(
+        '/notes/categories/defaults'
+      );
+      return response.data.categories;
+    },
+  });
+}
+
+// Generate splits mutation
+export function useGenerateSplits() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      noteId,
+      categories
+    }: {
+      noteId: string;
+      categories?: string[]
+    }) => {
+      const response = await apiClient.post<{
+        message: string;
+        status: string;
+        categories?: string[];
+      }>(
+        `/notes/${noteId}/generate-splits`,
+        { categories }
+      );
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: noteKeys.splits(variables.noteId) });
+      toast.success('Generating split files... Check back in a moment.');
+    },
+    onError: (error: any) => {
+      const detail = error.response?.data?.detail;
+      let message = 'Failed to generate splits';
+
+      if (typeof detail === 'string') {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        // Handle Pydantic validation error array
+        message = detail.map((e: any) => e.msg).join(', ');
+      }
+
+      toast.error(message);
+    },
+  });
+}
+
+// Check if splits already exist
+export function useCheckSplitsExist(noteId: string) {
+  return useQuery({
+    queryKey: noteKeys.splits(noteId),
+    queryFn: async () => {
+      const response = await apiClient.get<Note[]>(`/notes/${noteId}/splits`);
+      return response.data.length > 0;
+    },
+    enabled: !!noteId,
+  });
+}

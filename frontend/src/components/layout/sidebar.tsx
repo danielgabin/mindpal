@@ -51,7 +51,7 @@ export function Sidebar() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800" suppressHydrationWarning>
       {/* Logo */}
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center space-x-2">

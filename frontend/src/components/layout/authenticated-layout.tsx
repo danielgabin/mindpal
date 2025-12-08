@@ -11,7 +11,7 @@ export function AuthenticatedLayout({ children }: { children: React.ReactNode })
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden" suppressHydrationWarning>
         {/* Sidebar */}
-        <aside className="w-64 flex-shrink-0 hidden md:block">
+        <aside className="w-64 flex-shrink-0 hidden md:block" suppressHydrationWarning>
           <Sidebar />
         </aside>
 

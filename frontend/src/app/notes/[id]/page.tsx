@@ -7,8 +7,9 @@
 import { use, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { useNote, useUpdateNote, useDeleteNote, useNoteVersions, useRestoreVersion } from '@/hooks/use-notes';
+import { useNote, useUpdateNote, useDeleteNote, useNoteVersions, useRestoreVersion, useSplitNotes } from '@/hooks/use-notes';
 import { usePatient } from '@/hooks/use-patients';
+import { GenerateSplitsDialog } from '@/components/notes/generate-splits-dialog';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
   const { data: note, isLoading } = useNote(resolvedParams.id);
   const { data: patient } = usePatient(note?.patient_id || '');
   const { data: versions } = useNoteVersions(resolvedParams.id);
+  const { data: splits } = useSplitNotes(resolvedParams.id);
   const updateNote = useUpdateNote();
   const deleteNote = useDeleteNote();
   const restoreVersion = useRestoreVersion();
@@ -39,6 +41,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
 
   // Update local state when note loads
   useState(() => {
@@ -139,6 +142,27 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
             <Badge variant="secondary" className="capitalize">{note.kind}</Badge>
           </div>
           <div className="flex gap-2">
+            {note.kind === 'conceptualization' && (
+              <>
+                {splits && splits.length > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      router.push(`/patients/${note.patient_id}#notes`);
+                    }}
+                  >
+                    View {splits.length} Split Files
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => setGenerateDialogOpen(true)}
+                  >
+                    Generate Split Files
+                  </Button>
+                )}
+              </>
+            )}
             <Button onClick={handleSave} disabled={updateNote.isPending || !hasUnsavedChanges}>
               <Save className="h-4 w-4 mr-2" />
               {updateNote.isPending ? 'Saving...' : hasUnsavedChanges ? 'Save' : 'Saved'}
@@ -270,6 +294,18 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Generate Splits Dialog */}
+      {note && note.kind === 'conceptualization' && (
+        <GenerateSplitsDialog
+          open={generateDialogOpen}
+          onOpenChange={setGenerateDialogOpen}
+          noteId={resolvedParams.id}
+          onSuccess={() => {
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }
