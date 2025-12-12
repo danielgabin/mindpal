@@ -88,7 +88,7 @@ export default function PatientsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Patients</CardTitle>
-                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                <UserCheck color="#00760aff" className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{activeCount}</div>
@@ -97,7 +97,7 @@ export default function PatientsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Archived</CardTitle>
-                <Archive className="h-4 w-4 text-muted-foreground" />
+                <Archive color="#761e00ff" className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{archivedCount}</div>
@@ -110,14 +110,17 @@ export default function PatientsPage() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                 <div className="flex-1 w-full sm:max-w-sm">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search patients..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9"
-                    />
+                  <div className="relative h-9 w-full rounded-md group">
+                    <div className="absolute inset-0 rounded-md bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-[2px] bg-background rounded-[calc(var(--radius)-4px)] flex items-center">
+                      <Search className="absolute left-3 h-4 w-4 text-muted-foreground z-10" />
+                      <Input
+                        placeholder="Search patients..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 border-0 focus-visible:ring-0 shadow-none bg-transparent h-full w-full"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -173,7 +176,7 @@ export default function PatientsPage() {
                     <Link
                       key={patient.id}
                       href={`/patients/${patient.id}`}
-                      className="flex items-center gap-4 py-4 hover:bg-accent rounded-lg px-4 -mx-4 transition-colors"
+                      className="flex items-center gap-4 py-4 hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 rounded-lg px-4 -mx-4 transition-colors"
                     >
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
                         {patient.first_name[0]}

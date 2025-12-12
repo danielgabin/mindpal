@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Home, ArrowLeft, Archive, Plus, X } from 'lucide-react';
+import { Home, ArrowLeft, Archive, Plus, X, User, Activity, FileText } from 'lucide-react';
 import type { EntityType } from '@/types/patient';
 import type { Note } from '@/types/note';
 
@@ -45,15 +45,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const resolvedParams = use(params);
   const router = useRouter();
   const { data: patient, isLoading } = usePatient(resolvedParams.id);
-  const { data: entities } = usePatientEntities(resolvedParams.id);
   const updatePatient = useUpdatePatient();
   const deletePatient = useDeletePatient();
-  const addEntity = useAddPatientEntity();
-  const deleteEntity = useDeletePatientEntity();
 
-  const [entityDialogOpen, setEntityDialogOpen] = useState(false);
-  const [entityType, setEntityType] = useState<EntityType>('symptom');
-  const [entityValue, setEntityValue] = useState('');
 
   const form = useForm<UpdateFormValues>({
     resolver: zodResolver(updateSchema),
@@ -83,18 +77,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const onAddEntity = () => {
-    if (!entityValue.trim()) return;
-    addEntity.mutate(
-      { patientId: resolvedParams.id, data: { type: entityType, value: entityValue } },
-      {
-        onSuccess: () => {
-          setEntityValue('');
-          setEntityDialogOpen(false);
-        },
-      }
-    );
-  };
+
 
   if (isLoading) {
     return (
@@ -109,9 +92,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     return <div className="p-8">Patient not found</div>;
   }
 
-  const symptomEntities = entities?.filter(e => e.type === 'symptom') || [];
-  const medicationEntities = entities?.filter(e => e.type === 'medication') || [];
-  const feelingEntities = entities?.filter(e => e.type === 'feeling') || [];
+
 
   return (
     <div className="flex flex-col h-full">
@@ -153,12 +134,28 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <Tabs defaultValue="details" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="entities">Entities</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
+
+            <TabsList className="w-full flex border rounded-lg bg-white p-1 h-auto">
+              {[
+                { value: 'details', label: 'Details', icon: User },
+                { value: 'entities', label: 'Entities', icon: Activity },
+                { value: 'notes', label: 'Notes', icon: FileText },
+              ].map((tab, index, arr) => (
+                <div key={tab.value} className="flex-1 flex items-center">
+                  <TabsTrigger
+                    value={tab.value}
+                    className="relative h-10 w-full rounded-md border-0 bg-transparent px-4 font-semibold text-muted-foreground shadow-none 
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-purple-600/10 
+                    data-[state=active]:text-foreground data-[state=active]:shadow-none 
+                    hover:text-foreground hover:bg-transparent transition-colors"
+                  >
+                    <tab.icon className="mr-2 h-4 w-4" />
+                    {tab.label}
+                  </TabsTrigger>
+                </div>
+              ))}
             </TabsList>
 
             <TabsContent value="details">
@@ -266,63 +263,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             </TabsContent>
 
             <TabsContent value="entities" className="space-y-4">
-              {[
-                { type: 'symptom' as EntityType, title: 'Symptoms', items: symptomEntities },
-                { type: 'medication' as EntityType, title: 'Medications', items: medicationEntities },
-                { type: 'feeling' as EntityType, title: 'Feelings', items: feelingEntities },
-              ].map(({ type, title, items }) => (
-                <Card key={type}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>{title}</CardTitle>
-                      <Dialog open={entityDialogOpen && entityType === type} onOpenChange={(open) => {
-                        setEntityDialogOpen(open);
-                        if (open) setEntityType(type);
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Add {title.slice(0, -1)}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 pt-4">
-                            <Input
-                              placeholder={`Enter ${title.toLowerCase().slice(0, -1)}`}
-                              value={entityValue}
-                              onChange={(e) => setEntityValue(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && onAddEntity()}
-                            />
-                            <div className="flex gap-2">
-                              <Button onClick={onAddEntity} disabled={!entityValue.trim()}>Add</Button>
-                              <Button variant="outline" onClick={() => setEntityDialogOpen(false)}>Cancel</Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {items.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No {title.toLowerCase()} added yet</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {items.map((entity) => (
-                          <Badge key={entity.id} variant="secondary" className="gap-2">
-                            {entity.value}
-                            <button
-                              onClick={() => deleteEntity.mutate({ patientId: resolvedParams.id, entityId: entity.id })}
-                              className="hover:text-red-600"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+              <EntitiesTab patientId={resolvedParams.id} patientName={patient.full_name} />
             </TabsContent>
 
             <TabsContent value="notes" className="space-y-4">
@@ -335,12 +276,146 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   );
 }
 
+function EntitiesTab({ patientId, patientName }: { patientId: string; patientName: string }) {
+  const { data: entities } = usePatientEntities(patientId);
+  const addEntity = useAddPatientEntity();
+  const deleteEntity = useDeletePatientEntity();
+  const [entityDialogOpen, setEntityDialogOpen] = useState(false);
+  const [entityType, setEntityType] = useState<EntityType>('symptom');
+  const [entityValue, setEntityValue] = useState('');
+
+  const onAddEntity = () => {
+    if (!entityValue.trim()) return;
+    addEntity.mutate(
+      { patientId, data: { type: entityType, value: entityValue } },
+      {
+        onSuccess: () => {
+          setEntityValue('');
+          setEntityDialogOpen(false);
+        },
+      }
+    );
+  };
+
+  const entityConfig = [
+    {
+      type: 'symptom' as EntityType,
+      title: 'Symptoms',
+    },
+    {
+      type: 'medication' as EntityType,
+      title: 'Medications',
+    },
+    {
+      type: 'feeling' as EntityType,
+      title: 'Feelings',
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Clinical Entities</CardTitle>
+            <CardDescription>Manage symptoms, medications and feelings for {patientName}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {entityConfig.map((config) => {
+            const items = entities?.filter(e => e.type === config.type) || [];
+            return (
+              <Card
+                key={config.type}
+                className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 h-full flex flex-col"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors">{config.title}</CardTitle>
+                    <Dialog open={entityDialogOpen && entityType === config.type} onOpenChange={(open) => {
+                      setEntityDialogOpen(open);
+                      if (open) setEntityType(config.type);
+                    }}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="h-8">
+                          <Plus className="h-3 w-3 mr-1" /> Add
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add {config.title.slice(0, -1)}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 pt-4">
+                          <Input
+                            placeholder={`Enter ${config.title.toLowerCase().slice(0, -1)}`}
+                            value={entityValue}
+                            onChange={(e) => setEntityValue(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && onAddEntity()}
+                          />
+                          <div className="flex gap-2">
+                            <Button onClick={onAddEntity} disabled={!entityValue.trim()}>Add</Button>
+                            <Button variant="outline" onClick={() => setEntityDialogOpen(false)}>Cancel</Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  {items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-6 text-center opacity-50">
+                      <p className="text-xs">No {config.title.toLowerCase()} recorded</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {items.map((entity) => (
+                        <Badge
+                          key={entity.id}
+                          variant="secondary"
+                          className="bg-secondary/50 hover:bg-secondary/70 gap-1 pl-2.5 pr-1.5 py-1"
+                        >
+                          {entity.value}
+                          <button
+                            onClick={() => deleteEntity.mutate({ patientId, entityId: entity.id })}
+                            className="ml-1 hover:text-red-500 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // Notes Tab Component
 function NotesTab({ patientId, patientName }: { patientId: string; patientName: string }) {
   const router = useRouter();
   const [kindFilter, setKindFilter] = useState<'all' | 'conceptualization' | 'followup' | 'split'>('all');
   const { data: notes, isLoading } = useNotes(patientId, kindFilter === 'all' ? undefined : kindFilter);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const getBadgeColor = (kind: string) => {
+    switch (kind) {
+      case 'conceptualization':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 hover:bg-indigo-200';
+      case 'followup':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200';
+      case 'split':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 hover:bg-amber-200';
+      default:
+        return 'bg-slate-100 text-slate-800';
+    }
+  };
 
   return (
     <>
@@ -369,42 +444,57 @@ function NotesTab({ patientId, patientName }: { patientId: string; patientName: 
               </DialogContent>
             </Dialog>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 mb-4">
+
+          <div className="flex gap-2">
             <Button variant={kindFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('all')}>All</Button>
             <Button variant={kindFilter === 'conceptualization' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('conceptualization')}>Conceptualization</Button>
             <Button variant={kindFilter === 'followup' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('followup')}>Follow-up</Button>
             <Button variant={kindFilter === 'split' ? 'default' : 'outline'} size="sm" onClick={() => setKindFilter('split')}>Split Files</Button>
           </div>
-
+        </CardHeader>
+        <CardContent>
           {isLoading ? (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-[220px] w-full rounded-xl" />)}
             </div>
           ) : !notes || notes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No notes found</p>
-              <Button variant="link" onClick={() => setCreateDialogOpen(true)}>Create your first note</Button>
+            <div className="text-center py-12 border-2 border-dashed rounded-xl">
+              <p className="text-muted-foreground mb-4">No notes found</p>
+              <Button onClick={() => setCreateDialogOpen(true)}>Create your first note</Button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {notes.map((note) => (
-                <div
+                <Card
                   key={note.id}
                   onClick={() => router.push(`/notes/${note.id}`)}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                  className="group cursor-pointer hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 flex flex-col h-full min-h-[220px]"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{note.title}</h4>
-                      <Badge variant="secondary" className="text-xs capitalize">{note.kind}</Badge>
+                  <CardHeader className="pb-3 space-y-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <Badge className={`${getBadgeColor(note.kind)} border-none capitalize px-2.5 py-0.5 pointer-events-none`}>
+                        {note.kind}
+                      </Badge>
+                      <div className="text-xs text-muted-foreground whitespace-nowrap font-medium px-2 py-1 bg-muted rounded-md">
+                        v{note.version_count}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(note.updated_at).toLocaleDateString()} • {note.version_count} versions
-                    </p>
-                  </div>
-                </div>
+                    <CardTitle className="text-xl font-bold leading-tight group-hover:text-primary transition-colors line-clamp-2">
+                      {note.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col justify-end gap-2 text-sm text-muted-foreground pt-0">
+                    <div className="w-full h-px bg-border/50 my-2" />
+                    <div className="flex justify-between items-center text-xs">
+                      <span>Created</span>
+                      <span className="font-medium text-foreground">{new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span>Last updated</span>
+                      <span className="font-medium text-foreground">{new Date(note.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
