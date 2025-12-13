@@ -135,7 +135,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-7xl mx-auto">
-          <Tabs defaultValue="details" className="space-y-6">
+          <Tabs defaultValue="notes" className="space-y-6">
 
             <TabsList className="w-full flex border rounded-lg bg-white p-1 h-auto">
               {[
@@ -475,7 +475,7 @@ function NotesTab({ patientId, patientName }: { patientId: string; patientName: 
                       <Badge className={`${getBadgeColor(note.kind)} border-none capitalize px-2.5 py-0.5 pointer-events-none`}>
                         {note.kind}
                       </Badge>
-                      <div className="text-xs text-muted-foreground whitespace-nowrap font-medium px-2 py-1 bg-muted rounded-md">
+                      <div className="text-xs text-white whitespace-nowrap font-medium px-2 py-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-md">
                         v{note.version_count}
                       </div>
                     </div>

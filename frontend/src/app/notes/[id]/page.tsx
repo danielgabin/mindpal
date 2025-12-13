@@ -18,11 +18,12 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Home, ArrowLeft, Save, Trash, RotateCcw } from 'lucide-react';
+import { Home, ArrowLeft, Save, Trash, RotateCcw, Edit, Eye, Clock } from 'lucide-react';
 import '@toast-ui/editor/dist/toastui-editor.css';
 
 // Dynamic import for Toast UI Editor (client-side only)
 const Editor = dynamic(() => import('@toast-ui/react-editor').then(mod => mod.Editor), { ssr: false });
+const Viewer = dynamic(() => import('@toast-ui/react-editor').then(mod => mod.Viewer), { ssr: false });
 
 export default function NoteEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -40,13 +41,17 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
   const [title, setTitle] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  // Add state to force viewer update when switching tabs or content changes
+  const [previewMarkdown, setPreviewMarkdown] = useState('');
 
   // Update local state when note loads
   useState(() => {
     if (note) {
       setTitle(note.title);
+      setPreviewMarkdown(note.content_markdown);
     }
   });
 
@@ -54,6 +59,9 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
     if (!editorRef.current) return;
 
     const markdown = editorRef.current.getInstance().getMarkdown();
+    // Update preview content on save
+    setPreviewMarkdown(markdown);
+
     updateNote.mutate(
       {
         id: resolvedParams.id,
@@ -69,6 +77,13 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
       }
     );
   }, [title, resolvedParams.id, updateNote]);
+
+  const onTabChange = (value: string) => {
+    if (value === 'preview' && editorRef.current) {
+      // Get latest content from editor when switching to preview
+      setPreviewMarkdown(editorRef.current.getInstance().getMarkdown());
+    }
+  };
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this note?')) {
@@ -175,137 +190,215 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        <Tabs defaultValue="edit" className="h-full flex flex-col">
-          <div className="px-8 pt-4">
-            <TabsList>
-              <TabsTrigger value="edit">Edit</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-              <TabsTrigger value="versions">Versions ({versions?.length || 0})</TabsTrigger>
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-7xl mx-auto">
+          <Tabs defaultValue="preview" className="space-y-6">
+            <TabsList className="w-full flex border rounded-lg bg-white p-1 h-auto">
+              {[
+                { value: 'preview', label: 'Preview', icon: Eye },
+                { value: 'edit', label: 'Edit', icon: Edit },
+                { value: 'versions', label: `Versions (${versions?.length || 0})`, icon: Clock },
+              ].map((tab, index, arr) => (
+                <div key={tab.value} className="flex-1 flex items-center">
+                  <TabsTrigger
+                    value={tab.value}
+                    className="relative h-10 w-full rounded-md border-0 bg-transparent px-4 font-semibold text-muted-foreground shadow-none 
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-purple-600/10 
+                    data-[state=active]:text-foreground data-[state=active]:shadow-none 
+                    hover:text-foreground hover:bg-transparent transition-colors"
+                  >
+                    <tab.icon className="mr-2 h-4 w-4" />
+                    {tab.label}
+                  </TabsTrigger>
+                </div>
+              ))}
             </TabsList>
-          </div>
 
-          <TabsContent value="edit" className="flex-1 overflow-hidden mt-4 data-[state=active]:flex data-[state=active]:flex-col px-8 pb-8">
-            <div className="flex-1 border rounded-lg overflow-hidden min-h-[600px]">
-              <Editor
-                ref={editorRef}
-                initialValue={note.content_markdown}
-                previewStyle="vertical"
-                height="600px"
-                initialEditType="wysiwyg"
-                useCommandShortcut={true}
-                onChange={() => setHasUnsavedChanges(true)}
-              />
-            </div>
-          </TabsContent>
+            <TabsContent value="edit" className="flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="flex-1 border rounded-lg overflow-hidden min-h-[600px]">
+                <Editor
+                  ref={editorRef}
+                  initialValue={note.content_markdown}
+                  previewStyle="vertical"
+                  height="800px"
+                  initialEditType="wysiwyg"
+                  useCommandShortcut={true}
+                  onChange={() => setHasUnsavedChanges(true)}
+                />
+              </div>
+            </TabsContent>
 
-          <TabsContent value="preview" className="flex-1 px-8 pb-8 overflow-y-auto mt-4">
-            <Card>
-              <CardContent className="pt-6 prose dark:prose-invert max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: note.content_markdown }} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="preview" className="flex-1 overflow-y-auto">
+              <Card>
+                <CardContent className="prose dark:prose-invert max-w-none">
+                  <Viewer initialValue={previewMarkdown} key={previewMarkdown} />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="versions" className="flex-1 px-8 pb-8 overflow-y-auto mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Version History</CardTitle>
-                <CardDescription>
-                  View and restore previous versions of this note
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!versions || versions.length === 0 ? (
-                  <p className="text-muted-foreground">No versions yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {versions.map((version) => (
-                      <div
-                        key={version.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">Version {version.version_number}</span>
-                            {version.version_number === note.current_version && (
-                              <Badge variant="default" className="text-xs">Current</Badge>
-                            )}
+            <TabsContent value="versions" className="flex-1 overflow-y-auto">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Version History</CardTitle>
+                  <CardDescription>
+                    View and restore previous versions of this note
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!versions || versions.length === 0 ? (
+                    <p className="text-muted-foreground">No versions yet</p>
+                  ) : (
+                    <div className="space-y-0">
+                      {versions.map((version, index) => (
+                        <div key={version.id} className="grid grid-cols-[auto_auto_1fr] gap-6 relative">
+                          {/* Date Column */}
+                          <div className="text-right pt-9 pl-2">
+                            <div className="text-sm font-medium text-foreground">
+                              {new Date(version.created_at).toLocaleDateString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(version.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(version.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedVersion(version);
-                              setVersionDialogOpen(true);
-                            }}
-                          >
-                            View
-                          </Button>
-                          {version.version_number !== note.current_version && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleRestoreVersion(version.version_number)}
-                            >
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                              Restore
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
 
-      {/* Version View Dialog */}
-      <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Version {selectedVersion?.version_number} - {new Date(selectedVersion?.created_at).toLocaleString()}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="prose dark:prose-invert max-w-none">
-            <pre className="whitespace-pre-wrap bg-muted p-4 rounded-lg">
-              {selectedVersion?.content_markdown}
-            </pre>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            {selectedVersion?.version_number !== note.current_version && (
-              <Button onClick={() => handleRestoreVersion(selectedVersion?.version_number)}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Restore This Version
+                          {/* Timeline Column */}
+                          <div className="relative flex flex-col items-center pt-12">
+                            {/* Timeline Line */}
+                            {index < versions.length - 1 && (
+                              <div className="absolute top-12 bottom-[-48px] w-px bg-border left-1/2 -translate-x-1/2" />
+                            )}
+
+                            {/* Timeline Circle */}
+                            <div className="h-3 w-3 rounded-full border-2 border-primary bg-background z-10" />
+                          </div>
+
+                          {/* Card Column */}
+                          <div className="pb-4 min-w-0">
+                            <Card className="hover:shadow-md transition-shadow">
+                              <CardContent className="flex items-center justify-between">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-lg">Version {version.version_number}</span>
+                                    {version.version_number === note.current_version && (
+                                      <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 border-0 text-white hover:from-blue-700 hover:to-purple-700">
+                                        Current
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {version.version_number === 1 ? 'Initial version' : 'Modified content'}
+                                  </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedVersion(version);
+                                      setVersionDialogOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    View
+                                  </Button>
+                                  {version.version_number !== note.current_version && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedVersion(version);
+                                        setRestoreConfirmOpen(true);
+                                      }}
+                                    >
+                                      <RotateCcw className="h-3 w-3 mr-1" />
+                                      Restore
+                                    </Button>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Version View Dialog */}
+        <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Version {selectedVersion?.version_number} - {new Date(selectedVersion?.created_at).toLocaleString()}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="prose dark:prose-invert max-w-none">
+              <div className="bg-muted p-4 rounded-lg">
+                <Viewer initialValue={selectedVersion?.content_markdown} key={selectedVersion?.content_markdown} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              {selectedVersion?.version_number !== note.current_version && (
+                <Button onClick={() => {
+                  setVersionDialogOpen(false);
+                  setRestoreConfirmOpen(true);
+                }}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Restore This Version
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setVersionDialogOpen(false)}>
+                Close
               </Button>
-            )}
-            <Button variant="outline" onClick={() => setVersionDialogOpen(false)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-      {/* Generate Splits Dialog */}
-      {note && note.kind === 'conceptualization' && (
-        <GenerateSplitsDialog
-          open={generateDialogOpen}
-          onOpenChange={setGenerateDialogOpen}
-          noteId={resolvedParams.id}
-          onSuccess={() => {
-            window.location.reload();
-          }}
-        />
-      )}
+        {/* Restore Confirmation Dialog */}
+        <Dialog open={restoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Restore Version {selectedVersion?.version_number}?</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-muted-foreground">
+                This will overwrite the current content of the note with the content from Version {selectedVersion?.version_number}.
+                This action creates a new version, so you won't lose the current state.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRestoreConfirmOpen(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (selectedVersion) {
+                    handleRestoreVersion(selectedVersion.version_number);
+                    setRestoreConfirmOpen(false);
+                  }
+                }}
+              >
+                Confirm Restore
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Generate Splits Dialog */}
+        {note && note.kind === 'conceptualization' && (
+          <GenerateSplitsDialog
+            open={generateDialogOpen}
+            onOpenChange={setGenerateDialogOpen}
+            noteId={resolvedParams.id}
+            onSuccess={() => {
+              window.location.reload();
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
