@@ -4,7 +4,7 @@
  * Note editor/viewer page with markdown editing and version management.
  */
 
-import { use, useState, useRef, useCallback } from 'react';
+import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useNote, useUpdateNote, useDeleteNote, useNoteVersions, useRestoreVersion, useSplitNotes } from '@/hooks/use-notes';
@@ -48,17 +48,22 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
   const [previewMarkdown, setPreviewMarkdown] = useState('');
 
   // Update local state when note loads
-  useState(() => {
-    if (note) {
+  const [lastInitializedId, setLastInitializedId] = useState<string>('');
+
+  useEffect(() => {
+    if (note && note.id !== lastInitializedId) {
       setTitle(note.title);
       setPreviewMarkdown(note.content_markdown);
+      setLastInitializedId(note.id);
     }
-  });
+  }, [note, lastInitializedId]);
 
   const handleSave = useCallback(() => {
-    if (!editorRef.current) return;
+    // Get latest content from editor if active, otherwise use current state
+    const markdown = editorRef.current
+      ? editorRef.current.getInstance().getMarkdown()
+      : previewMarkdown;
 
-    const markdown = editorRef.current.getInstance().getMarkdown();
     // Update preview content on save
     setPreviewMarkdown(markdown);
 
@@ -117,8 +122,8 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b bg-white dark:bg-gray-900 px-8 py-4">
-        <Breadcrumb className="mb-3">
+      <div className="border-b bg-white dark:bg-gray-900 px-8 py-6">
+        <Breadcrumb className="mb-4">
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink href="/dashboard"><Home className="h-4 w-4" /></BreadcrumbLink>
@@ -141,7 +146,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
         </Breadcrumb>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.back()}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -192,7 +197,7 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-7xl mx-auto">
-          <Tabs defaultValue="preview" className="space-y-6">
+          <Tabs defaultValue="preview" className="space-y-6" onValueChange={onTabChange}>
             <TabsList className="w-full flex border rounded-lg bg-white p-1 h-auto">
               {[
                 { value: 'preview', label: 'Preview', icon: Eye },

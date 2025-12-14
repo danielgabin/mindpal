@@ -120,10 +120,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             </Button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight">{patient.full_name}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{patient.full_name}</h1>
                 {patient.is_minor && <Badge>Minor</Badge>}
               </div>
-              <p className="text-muted-foreground mt-1">{patient.age} years old</p>
             </div>
           </div>
           <Button variant="destructive" onClick={onArchive}>
