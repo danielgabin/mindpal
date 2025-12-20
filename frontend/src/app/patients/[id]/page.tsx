@@ -4,10 +4,12 @@
  * Patient detail and edit page with tabs for information and entities.
  */
 
-import { use, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { use, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient, usePatientEntities, useAddPatientEntity, useDeletePatientEntity } from '@/hooks/use-patients';
 import { useNotes, useCreateNote } from '@/hooks/use-notes';
+import { useTemplates } from '@/hooks/use-templates';
+
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -402,6 +404,16 @@ function NotesTab({ patientId, patientName }: { patientId: string; patientName: 
   const [kindFilter, setKindFilter] = useState<'all' | 'conceptualization' | 'followup' | 'split'>('all');
   const { data: notes, isLoading } = useNotes(patientId, kindFilter === 'all' ? undefined : kindFilter);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const templateIdParam = searchParams.get('template');
+
+  // Auto-open dialog if template param is present and not yet opened
+  useEffect(() => {
+    if (templateIdParam && !createDialogOpen) {
+      setCreateDialogOpen(true);
+    }
+  }, [templateIdParam]);
+
 
   const getBadgeColor = (kind: string) => {
     switch (kind) {
@@ -509,20 +521,37 @@ function NewNoteForm({ patientId, onSuccess }: { patientId: string; onSuccess: (
   const [kind, setKind] = useState<'conceptualization' | 'followup'>('conceptualization');
   const createNote = useCreateNote();
 
+  const searchParams = useSearchParams();
+  const initialTemplateId = searchParams.get('template');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(initialTemplateId || '');
+
+  const { data: templates } = useTemplates(true);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    let content = '# ' + title + '\n\nStart writing your note here...';
+
+    if (selectedTemplateId && templates) {
+      const template = templates.find(t => t.id === selectedTemplateId);
+      if (template) {
+        content = template.content_markdown;
+      }
+    }
+
     createNote.mutate(
       {
         patient_id: patientId,
         title,
         kind,
-        content_markdown: '# ' + title + '\n\nStart writing your note here...',
+        content_markdown: content,
       },
       {
         onSuccess: (data) => onSuccess(data.id),
       }
     );
   };
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-4">
@@ -547,6 +576,23 @@ function NewNoteForm({ patientId, onSuccess }: { patientId: string; onSuccess: (
           </SelectContent>
         </Select>
       </div>
+      <div>
+        <label className="text-sm font-medium">Template (Optional)</label>
+        <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a template..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None (Blank Note)</SelectItem>
+            {templates?.map((template) => (
+              <SelectItem key={template.id} value={template.id}>
+                {template.name} {template.is_default && '(Default)'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex gap-2">
         <Button type="submit" disabled={createNote.isPending}>
           {createNote.isPending ? 'Creating...' : 'Create & Edit'}

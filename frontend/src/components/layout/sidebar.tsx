@@ -26,7 +26,9 @@ import {
   LogOut,
   Moon,
   Sun,
+  LayoutTemplate,
 } from 'lucide-react';
+
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +36,9 @@ const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/patients', label: 'Patients', icon: Users },
   { href: '/notes', label: 'Clinical Notes', icon: FileText },
+  { href: '/templates', label: 'Templates', icon: LayoutTemplate },
 ];
+
 
 export function Sidebar() {
   const pathname = usePathname();
